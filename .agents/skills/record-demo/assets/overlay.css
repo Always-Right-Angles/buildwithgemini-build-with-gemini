@@ -1,0 +1,47 @@
+/*
+ * Branding frame injected into the recorded page by record-agent.js.
+ * Everything is pointer-events:none so it never blocks the agent UI underneath.
+ * IDs are namespaced with `gwt-` to avoid clashing with the app's own styles.
+ */
+
+/* A thin gradient border framing the whole viewport. */
+#gwt-frame {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  pointer-events: none;
+  box-sizing: border-box;
+  border: 6px solid transparent;
+  border-image: linear-gradient(120deg, #4285F4, #9B72CB, #D96570) 1;
+}
+
+/* The title pill, centered along the top edge. */
+#gwt-badge {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: rgba(20, 20, 22, 0.82);
+  color: #ffffff;
+  font-family: "Google Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+
+#gwt-badge svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+  flex: 0 0 auto;
+}

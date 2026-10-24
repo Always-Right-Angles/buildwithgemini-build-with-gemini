@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent</title>
+<!-- Optional: used only to draw A2UI Icon components. If it can't load (offline/
+     corp network), icons fall back to showing their name as text. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined">
+<style>
+  :root { --accent:#1a73e8; --bg:#f6f8fa; --border:#dfe3e8; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,sans-serif; background:var(--bg); display:flex; flex-direction:column; height:100vh; }
+  header { background:var(--accent); color:#fff; padding:.9rem 1.2rem; font-weight:700; }
+  #log { flex:1; overflow-y:auto; padding:1.2rem; max-width:780px; width:100%; margin:0 auto; }
+  .msg { margin:.6rem 0; }
+  .msg.user { text-align:right; }
+  .bubble { display:inline-block; padding:.6rem .9rem; border-radius:12px; background:#fff; border:1px solid var(--border); text-align:left; max-width:90%; white-space:pre-wrap; }
+  .msg.user .bubble { background:var(--accent); color:#fff; border:none; }
+  /* When the reply is an A2UI card, drop the bubble chrome so the card stands alone. */
+  .bubble.rich { background:transparent; border:none; padding:0; max-width:100%; white-space:normal; }
+  form { display:flex; gap:.5rem; padding:1rem; border-top:1px solid var(--border); background:#fff; }
+  input { flex:1; padding:.7rem; border:1px solid var(--border); border-radius:8px; font-size:1rem; }
+  button { padding:.7rem 1.1rem; border:none; border-radius:8px; background:var(--accent); color:#fff; font-weight:600; cursor:pointer; }
+
+  /* --- A2UI component styles (Card, Column, Row, Text, Divider, List, Image, Icon) --- */
+  .a2card { border:1px solid var(--border); border-radius:12px; padding:1rem; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.06); max-width:100%; }
+  .a2card + .a2card, .a2col > .a2card { margin-top:.6rem; }
+  .a2col { display:flex; flex-direction:column; gap:.4rem; }
+  .a2row { display:flex; flex-direction:row; gap:.6rem; align-items:center; flex-wrap:wrap; }
+  .a2row.between { justify-content:space-between; }
+  .a2text { margin:0; line-height:1.4; }
+  .a2text.a2-h1 { font-size:1.5rem; font-weight:700; }
+  .a2text.a2-h2 { font-size:1.25rem; font-weight:700; }
+  .a2text.a2-h3 { font-size:1.1rem; font-weight:600; }
+  .a2text.a2-h4 { font-size:1rem; font-weight:600; }
+  .a2text.a2-caption { font-size:.85rem; color:#666; }
+  .a2divider { border:none; border-top:1px solid var(--border); margin:.4rem 0; width:100%; }
+  .a2img { max-width:100%; border-radius:8px; display:block; }
+  .material-symbols-outlined { font-family:'Material Symbols Outlined'; font-size:1.25rem; line-height:1; vertical-align:middle; color:var(--accent); }
+</style>
+</head>
+<body>
+<header>Your Agent</header>
+<div id="log"></div>
+<form id="form">
+  <input id="input" placeholder="Ask something…" autocomplete="off" autofocus>
+  <button>Send</button>
+</form>
+
+<script>
+const log = document.getElementById("log");
+const form = document.getElementById("form");
+const input = document.getElementById("input");
+
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+function bubble(who) {
+  const m = el("div", "msg " + who);
+  const b = el("div", "bubble");
+  m.appendChild(b); log.appendChild(m); log.scrollTop = log.scrollHeight;
+  return b;
+}
+
+/* ----------------------------------------------------------------------------
+ * A2UI mini-renderer (v0.8 Basic Catalog subset).
+ * Renders Card / Column / Row / Text / Divider / List / Image / Icon.
+ * Anything else falls back to plain text (see renderReply). All text goes in via
+ * textContent and image URLs are validated, so agent output can't inject HTML.
+ * -------------------------------------------------------------------------- */
+
+// A "bound value" is usually {literalString: "..."}; we only support literals.
+function boundStr(v) {
+  if (v == null) return "";
+  if (typeof v === "string") return v;
+  if (typeof v.literalString === "string") return v.literalString;
+  return "";
+}
+
+// child ids of a component's props: single `child` and/or `children.explicitList`.
+function childIds(props) {
+  const ids = [];
+  if (props && typeof props.child === "string") ids.push(props.child);
+  const ch = props && props.children;
+  if (ch && Array.isArray(ch.explicitList)) for (const c of ch.explicitList) if (typeof c === "string") ids.push(c);
+  return ids;
+}
+
+// A2UI icon names are camelCase (locationOn); Material Symbols wants snake_case.
+function iconName(n) { return String(n || "").replace(/([a-z0-9])([A-Z])/g, "$1_$2").replace(/\s+/g, "_").toLowerCase(); }
+
+function buildNode(id, comps, seen) {
+  if (!id || seen.has(id)) return null;   // missing / cycle guard
+  seen.add(id);
+  const spec = comps[id];
+  if (!spec || typeof spec !== "object") return null;
+  const type = Object.keys(spec)[0];
+  const props = spec[type] || {};
+  const kids = () => childIds(props).map(cid => buildNode(cid, comps, seen)).filter(Boolean);
+
+  switch (type) {
+    case "Card": {
+      const d = el("div", "a2card"); kids().forEach(n => d.appendChild(n)); return d;
+    }
+    case "Column":
+    case "List": {
+      const horizontal = type === "List" && props.direction === "horizontal";
+      const d = el("div", horizontal ? "a2row" : "a2col"); kids().forEach(n => d.appendChild(n)); return d;
+    }
+    case "Row": {
+      const d = el("div", "a2row" + (props.distribution === "spaceBetween" ? " between" : ""));
+      kids().forEach(n => d.appendChild(n)); return d;
+    }
+    case "Text": {
+      const t = el("div", "a2text");
+      const hint = String(props.usageHint || "body").toLowerCase();
+      if (["h1", "h2", "h3", "h4", "h5", "h6"].includes(hint)) t.classList.add("a2-" + hint);
+      else if (hint === "caption") t.classList.add("a2-caption");
+      t.textContent = boundStr(props.text);
+      return t;
+    }
+    case "Divider":
+      return el("hr", "a2divider");
+    case "Image": {
+      const src = boundStr(props.url || props.src);
+      if (!/^https?:\/\//i.test(src)) return null;   // only allow safe URLs
+      const img = el("img", "a2img"); img.src = src; img.alt = boundStr(props.alt) || ""; return img;
+    }
+    case "Icon": {
+      const s = el("span", "material-symbols-outlined"); s.textContent = iconName(boundStr(props.name) || props.name); return s;
+    }
+    default:
+      return null;   // unknown component -> skipped (text fallback covers content)
+  }
+}
+
+// Render one or more A2UI messages (beginRendering + surfaceUpdate) into `container`.
+// Returns true if anything was drawn.
+function renderSurface(messages, container) {
+  const comps = {};
+  const roots = [];
+  for (const m of messages) {
+    if (m.beginRendering && typeof m.beginRendering.root === "string") roots.push(m.beginRendering.root);
+    const su = m.surfaceUpdate;
+    if (su && Array.isArray(su.components)) for (const c of su.components) if (c && c.id && c.component) comps[c.id] = c.component;
+  }
+  let rootIds = roots.filter(r => comps[r]);
+  if (rootIds.length === 0) {   // no valid root given -> infer un-referenced components
+    const referenced = new Set();
+    for (const id in comps) { const spec = comps[id]; childIds(spec[Object.keys(spec)[0]] || {}).forEach(c => referenced.add(c)); }
+    rootIds = Object.keys(comps).filter(id => !referenced.has(id));
+  }
+  let drew = false;
+  for (const rid of rootIds) { const node = buildNode(rid, comps, new Set()); if (node) { container.appendChild(node); drew = true; } }
+  return drew;
+}
+
+// Fallback: pull every Text value out of the messages as plain text.
+function flattenText(messages) {
+  const out = [];
+  for (const m of messages) {
+    const su = m.surfaceUpdate;
+    if (su && Array.isArray(su.components)) for (const c of su.components) if (c && c.component && c.component.Text) out.push(boundStr(c.component.Text.text));
+  }
+  return out.join("\n").trim();
+}
+
+function renderReply(b, parts) {
+  b.textContent = "";   // clear the "…" placeholder
+  const texts = parts.filter(p => p && (p.kind === "text" || (!p.kind && p.text))).map(p => p.text || "");
+  const a2ui = parts.filter(p => p && p.kind === "a2ui" && p.data).map(p => p.data);
+
+  const textStr = texts.join("\n").trim();
+  if (textStr) b.appendChild(el("div", null, textStr));
+
+  if (a2ui.length) {
+    b.classList.add("rich");
+    if (!renderSurface(a2ui, b)) b.appendChild(el("div", null, flattenText(a2ui) || "(no card content)"));
+  }
+  if (!b.childNodes.length) b.textContent = "(no response)";
+  log.scrollTop = log.scrollHeight;
+}
+
+// The proxy returns { parts: [{kind:"text",text} | {kind:"a2ui",data}] }.
+form.addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const text = input.value.trim();
+  if (!text) return;
+  bubble("user").textContent = text;
+  input.value = "";
+  const b = bubble("agent"); b.textContent = "…";
+  try {
+    const res = await fetch("/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: text }) });
+    // Read as text first, then parse. If the proxy ever returns a non-JSON error
+    // page (e.g. a plain "Internal Server Error"), show that body instead of a
+    // cryptic "Unexpected token" JSON error.
+    const raw = await res.text();
+    let data;
+    try { data = JSON.parse(raw); }
+    catch { throw new Error(`Server returned non-JSON (HTTP ${res.status}). ${raw.slice(0, 300)}`); }
+    renderReply(b, data.parts || []);
+  } catch (e) {
+    b.textContent = "Error: " + e.message;
+  }
+});
+</script>
+</body>
+</html>

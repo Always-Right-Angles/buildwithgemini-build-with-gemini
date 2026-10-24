@@ -1,0 +1,17 @@
+#!/bin/bash
+# PATH shim: capture URLs Antigravity asks the desktop to open, and route them
+# to the automation's dedicated browser (AG_URL_HANDLER) when one is set,
+# otherwise fall back to Google Chrome so the link still opens.
+#
+# Install this SAME script to BOTH interception points on the Selkie remote
+# desktop (xdg-open is what the desktop actually calls to open a URL):
+#   /config/automata/bin/shim
+#   /config/automata/bin/xdg-open
+# Each must be a regular executable FILE, not a directory. Some images ship these
+# paths as directories — replace them (see the troubleshoot-lab-setup skill).
+printf '%s\n' "$1" >> "${AG_URL_CAPTURE:-/tmp/ag_opened_urls.txt}"
+if [ -n "$AG_URL_HANDLER" ]; then
+    exec "$AG_URL_HANDLER" "$@"
+else
+    exec /usr/bin/google-chrome --no-sandbox "$@"
+fi

@@ -1,0 +1,26 @@
+# Authoring notes, not participant-facing
+context.md
+
+# macOS noise
+.DS_Store
+
+# record-demo artifacts (Playwright install + temp recording dir)
+node_modules/
+package-lock.json
+.video_tmp/
+
+# --- added by publish-to-github skill ---
+.venv/
+venv/
+__pycache__/
+*.pyc
+node_modules/
+.video_tmp/
+.DS_Store
+.env
+*.env
+application_default_credentials.json
+*-sa-key.json
+service-account*.json
+# Keep the demo GIF (README embeds it); ignore the large raw recording.
+*.webm
