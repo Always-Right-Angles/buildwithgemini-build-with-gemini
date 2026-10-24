@@ -22,13 +22,20 @@ import urllib.parse
 import urllib.request
 from zoneinfo import ZoneInfo
 
+from a2ui.basic_catalog.provider import BasicCatalog
+from a2ui.schema.manager import A2uiSchemaManager
 from google import genai
 from google.adk.agents import Agent
+from google.adk.agents.callback_context import CallbackContext
 from google.adk.apps import App
+from google.adk.code_executors.agent_engine_sandbox_code_executor import AgentEngineSandboxCodeExecutor
 from google.adk.models import Gemini
+from google.adk.tools.preload_memory_tool import PreloadMemoryTool
 from google.adk.tools.tool_context import ToolContext
 from google.cloud import firestore, storage
 from google.genai import types
+
+from app.a2ui_utils import a2ui_callback
 
 
 MODEL = "gemini-3.8-flash"
@@ -38,6 +45,14 @@ FIRESTORE_PROJECT = "qwiklabs-gcp-01-310a79347b6d"
 
 # Hardcode public Cloud Storage bucket for destination assets
 TRAVEL_ASSETS_BUCKET = "wanderlust-travel-assets-310a79347b6d"
+
+# Vertex AI Memory Bank instance (Agent Engine ID)
+MEMORY_BANK_ID = "9123051496424865792"
+
+# Agent Platform Code Execution Sandbox on Agent Engine
+SANDBOX_RESOURCE_NAME = (
+    "projects/724735868902/locations/us-east1/reasoningEngines/9123051496424865792/sandboxEnvironments/1912873155400040448"
+)
 
 # Lazy-loaded Firestore client
 _db_client = None
@@ -460,8 +475,58 @@ async def generate_destination_image(
 
 
 # ---------------------------------------------------------
-# Root Agent Configuration
+# A2UI Schema Manager, Callbacks & Root Agent Configuration
 # ---------------------------------------------------------
+
+
+# WRITE: after each turn, send the session to Memory Bank for extraction.
+async def generate_memories_callback(callback_context: CallbackContext) -> None:
+    await callback_context.add_session_to_memory()
+    return None
+
+
+schema_manager = A2uiSchemaManager(
+    version="0.8",
+    catalogs=[BasicCatalog.get_config("0.8")],
+)
+
+a2ui_instruction = schema_manager.generate_system_prompt(
+    role_description=(
+        "You are Wanderlust AI, an expert global travel concierge. "
+        "You help travelers discover vacation spots, explore destination highlights, compare costs, "
+        "and craft personalized day-by-day itineraries. "
+        "You remember the traveler's stated preferences, travel styles, dietary restrictions, and past trip facts "
+        "from previous conversations and use them to personalize your recommendations. "
+        "Always use your Firestore tools (search_destinations, get_destination_details) to fetch factual "
+        "catalog data, convert_currency to compute real-time foreign exchange amounts, and use geocode_address "
+        "and search_nearby_places to look up real-world coordinates and local attractions, restaurants, or museums. "
+        "Use generate_destination_image to generate scenic travel photos, postcards, or visuals for destinations. "
+        "You have Python code execution enabled via a secure Agent Engine sandbox. You can write and execute Python code "
+        "to calculate complex multi-destination travel budgets, compare costs, or analyze data. "
+        "Use save_itinerary or add_destination when the traveler wants to create or record plans."
+    ),
+    workflow_description="Analyze the request and return structured UI when appropriate.",
+    ui_description=(
+        "Keep every surface tiny and flat: ONE Card > ONE Column > a few Text rows. "
+        "Never nest a Card inside a Card. "
+        "Use ONLY these components: Card, Column, Row, Text, and Image. Do not use "
+        "Table or Heading (unsupported), or Buttons, actions, or forms (they do "
+        "nothing in adk web). "
+        "You may include one Image component, but only when you have a public https "
+        "URL for the image (for example the URL an image tool returns after uploading "
+        "to a public bucket). Set the Image url to that exact https link, for example "
+        "{\"Image\": {\"url\": {\"literalString\": \"https://...\"}}}. Never point an "
+        "Image at a bare filename, an artifact name, or a non-http(s) path. If you do "
+        "not have a public URL, add a short Text line noting the image instead. "
+        "No markdown in text; use the usageHint property ('h1', 'h2', 'body') for "
+        "headings and emphasis. "
+        "Output ONLY the raw A2UI JSON array — no prose, and never wrap it in "
+        "<a2a_datapart_json> tags or 'kind'/'data'/'metadata' objects."
+    ),
+    include_schema=True,
+    include_examples=True,
+)
+
 
 root_agent = Agent(
     # Keep in sync with create_params.root_agent_name in agents-cli-manifest.yaml
@@ -470,17 +535,12 @@ root_agent = Agent(
         model=MODEL,
         retry_options=types.HttpRetryOptions(attempts=3),
     ),
-    instruction=(
-        "You are Wanderlust AI, an expert global travel concierge. "
-        "You help travelers discover vacation spots, explore destination highlights, compare costs, "
-        "and craft personalized day-by-day itineraries. "
-        "Always use your Firestore tools (search_destinations, get_destination_details) to fetch factual "
-        "catalog data, convert_currency to compute real-time foreign exchange amounts, and use geocode_address "
-        "and search_nearby_places to look up real-world coordinates and local attractions, restaurants, or museums. "
-        "Use generate_destination_image to generate scenic travel photos, postcards, or visuals for destinations. "
-        "Use save_itinerary or add_destination when the traveler wants to create or record plans."
+    instruction=a2ui_instruction,
+    code_executor=AgentEngineSandboxCodeExecutor(
+        sandbox_resource_name=SANDBOX_RESOURCE_NAME,
     ),
     tools=[
+        PreloadMemoryTool(),
         search_destinations,
         get_destination_details,
         add_destination,
@@ -491,6 +551,8 @@ root_agent = Agent(
         generate_destination_image,
         get_weather,
     ],
+    after_model_callback=a2ui_callback,
+    after_agent_callback=generate_memories_callback,
 )
 
 app = App(

@@ -48,6 +48,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app=adk_app,
         session_service=services.get_session_service(),
         artifact_service=services.get_artifact_service(),
+        memory_service=services.get_memory_service(),
         auto_create_session=True,
     )
     app.state.runner = runner
@@ -68,6 +69,7 @@ app: FastAPI = get_fast_api_app(
     artifact_service_uri=services.ARTIFACT_SERVICE_URI,
     allow_origins=allow_origins,
     session_service_uri=services.SESSION_SERVICE_URI,
+    memory_service_uri=services.MEMORY_SERVICE_URI,
     otel_to_cloud=otel_to_cloud,
     lifespan=lifespan,
 )

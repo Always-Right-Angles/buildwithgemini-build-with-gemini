@@ -13,6 +13,9 @@ resolution-markers = [
     "python_full_version < '3.12' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 
+[manifest]
+overrides = [{ name = "a2a-sdk", specifier = ">=1.0,<2" }]
+
 [[package]]
 name = "a2a-sdk"
 version = "1.2.3"
@@ -32,10 +35,35 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/7b/df/138f64f3138db7b44b9798426909357d27429c868715af8751ace6083238/a2a_sdk-1.2.3-py3-none-any.whl", hash = "sha256:a89529ab7d026900170aefc1515f35c68d9a14b6a9133f8cc775c8fe598f8ae7", size = 278339, upload-time = "2026-10-19T10:11:29.102Z" },
 ]
 
-[package.optional-dependencies]
-http-server = [
-    { name = "sse-starlette" },
-    { name = "starlette" },
+[[package]]
+name = "a2ui-agent-sdk"
+version = "0.4.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "a2a-sdk" },
+    { name = "a2ui-core" },
+    { name = "antlr4-python3-runtime" },
+    { name = "google-adk" },
+    { name = "google-genai" },
+    { name = "jsonschema" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/36/57/1911d62db025dec6200b410e858d2691aebdf77fc2cf436837a012452f92/a2ui_agent_sdk-0.4.0.tar.gz", hash = "sha256:4b431b92a7ff55846a3e4b7fb18d591c27e6a673986b039ecdab2758e76c0074", size = 128897, upload-time = "2026-07-08T06:25:04.037Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/60/76/6bcf71e51bd22cfff88ab88757e5f7f658bbe172ab0411abb3acb7f3ec82/a2ui_agent_sdk-0.4.0-py3-none-any.whl", hash = "sha256:3a073bf93998f277d00f77baf37402ac95ab2b6048aa7e4f9e1db9c95be364c9", size = 129873, upload-time = "2026-07-08T06:25:01.577Z" },
+]
+
+[[package]]
+name = "a2ui-core"
+version = "0.1.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "jsonschema" },
+    { name = "pydantic" },
+    { name = "referencing" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d9/51/477ea2d173f77d54f1a3b963fafc811a228427d077442bc7b6cc7409787d/a2ui_core-0.1.1.tar.gz", hash = "sha256:591df9357cd84a3ccf409132a741eb1fbb060be73de0eebb3dcfdd4c7b33180d", size = 84241, upload-time = "2026-07-08T03:49:36.958Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2e/14/2344f6edc4b381db477d4387a28d1c84a56614962cc16f55074be981a12a/a2ui_core-0.1.1-py3-none-any.whl", hash = "sha256:8857e1942b8b1bab530efa0c20f6f9048c5771b47b3b98b3bc1ca28d39480069", size = 75389, upload-time = "2026-07-08T03:49:35.698Z" },
 ]
 
 [[package]]
@@ -186,6 +214,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/5f/56/a8120250d128bed162cd73c76d45f6ef9991f3e068f62a8ee060afa3104a/annotated_types-0.8.0.tar.gz", hash = "sha256:13b2beaad985e05e2d6407ee4c4f35590b11f8d693a258a561055cac8f64cab7", size = 15893, upload-time = "2026-07-23T20:16:13.995Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/99/91/8acff4f5e50511b911bbccb72b8628a49c68ce14148cd9f6431094859a90/annotated_types-0.8.0-py3-none-any.whl", hash = "sha256:f072f4d804ea359e4eaf198b1af7a8b0943881a87f31bb764f8bf219bb9419e0", size = 13427, upload-time = "2026-07-23T20:16:12.938Z" },
+]
+
+[[package]]
+name = "antlr4-python3-runtime"
+version = "4.13.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/33/5f/2cdf6f7aca3b20d3f316e9f505292e1f256a32089bd702034c29ebde6242/antlr4_python3_runtime-4.13.2.tar.gz", hash = "sha256:909b647e1d2fc2b70180ac586df3933e38919c85f98ccc656a96cd3f25ef3916", size = 117467, upload-time = "2024-08-03T19:00:12.757Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/89/03/a851e84fcbb85214dc637b6378121ef9a0dd61b4c65264675d8a5c9b1ae7/antlr4_python3_runtime-4.13.2-py3-none-any.whl", hash = "sha256:fe3835eb8d33daece0e799090eda89719dbccee7aa39ef94eed3818cafa5a7e8", size = 144462, upload-time = "2024-08-03T19:00:11.134Z" },
 ]
 
 [[package]]
@@ -3378,7 +3415,8 @@ name = "wanderlust-agent"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "a2a-sdk", extra = ["http-server"] },
+    { name = "a2a-sdk" },
+    { name = "a2ui-agent-sdk" },
     { name = "aiohttp" },
     { name = "gcsfs" },
     { name = "google-adk", extra = ["bigquery-analytics", "gcp", "otel-gcp"] },
@@ -3388,6 +3426,7 @@ dependencies = [
     { name = "google-cloud-logging" },
     { name = "opentelemetry-resourcedetector-gcp" },
     { name = "protobuf" },
+    { name = "sse-starlette" },
     { name = "tzdata" },
 ]
 
@@ -3412,6 +3451,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "a2a-sdk", extras = ["http-server"], specifier = ">=1.0,<2" },
+    { name = "a2ui-agent-sdk", specifier = ">=0.4.0,<0.5.0" },
     { name = "aiohttp", specifier = ">=3.13.4" },
     { name = "codespell", marker = "extra == 'lint'", specifier = ">=2.2.0,<3.0.0" },
     { name = "gcsfs", specifier = ">=2026.10.0" },
@@ -3425,6 +3465,7 @@ requires-dist = [
     { name = "opentelemetry-resourcedetector-gcp", specifier = "<=1.12.0a0" },
     { name = "protobuf", specifier = ">=6.31.1,<7.0.0" },
     { name = "ruff", marker = "extra == 'lint'", specifier = ">=0.4.6,<1.0.0" },
+    { name = "sse-starlette", specifier = ">=3.5.0" },
     { name = "ty", marker = "extra == 'lint'", specifier = ">=0.0.1a0" },
     { name = "tzdata", specifier = ">=2026.5" },
 ]
